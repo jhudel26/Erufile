@@ -171,17 +171,19 @@ export const SignPdfView: React.FC<SignPdfViewProps> = ({
   return (
     <div className="flex flex-col lg:flex-row min-h-[calc(100vh-64px)]">
       {/* Visual Document Canvas with Drag-Positioned Stamp */}
-      <div className="flex-1 p-6 lg:p-8 bg-slate-100 flex flex-col items-center justify-between overflow-auto relative">
+      <div className="flex-1 p-4 lg:p-6 bg-slate-100 flex flex-col items-center justify-between overflow-auto relative">
         {/* Top Control Bar with Page Navigation */}
-        <div className="flex items-center justify-between w-full max-w-2xl mb-4 bg-white p-3 px-5 rounded-2xl border border-slate-200 shadow-xs">
-          <div>
-            <h3 className="text-sm font-bold text-slate-800">{fileItem.name}</h3>
-            <p className="text-[11px] text-slate-500">
+        <div className="flex items-center justify-between w-full max-w-3xl mb-3 bg-white p-3 px-5 rounded-2xl border border-slate-200 shadow-xs gap-3">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-sm font-bold text-slate-800 truncate" title={fileItem.name}>
+              {fileItem.name}
+            </h3>
+            <p className="text-[11px] text-slate-500 truncate">
               Click on the page below to place your signature stamp.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {/* Page navigation */}
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
               <button
@@ -193,7 +195,7 @@ export const SignPdfView: React.FC<SignPdfViewProps> = ({
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="text-xs font-bold text-slate-700 px-2">
+              <span className="text-xs font-bold text-slate-700 px-2 whitespace-nowrap">
                 Page {currentPage} of {totalPages}
               </span>
               <button
@@ -216,56 +218,58 @@ export const SignPdfView: React.FC<SignPdfViewProps> = ({
           </div>
         </div>
 
-        {/* Document Page Canvas */}
-        <div
-          onClick={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const clickX = ((e.clientX - rect.left) / rect.width) * 100;
-            const clickY = ((e.clientY - rect.top) / rect.height) * 100;
-            setStampPos({
-              x: Math.max(5, Math.min(85, clickX)),
-              y: Math.max(5, Math.min(85, clickY)),
-            });
-          }}
-          className="w-full max-w-xl aspect-[1/1.414] bg-white rounded-2xl shadow-xl border border-slate-300 relative cursor-crosshair overflow-hidden select-none p-4"
-        >
-          {loadingPages && !activePreviewUrl ? (
-            <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-2">
-              <Loader2 className="w-7 h-7 animate-spin text-teal-600" />
-              <span className="text-xs">Rendering page {currentPage}...</span>
-            </div>
-          ) : activePreviewUrl ? (
-            <img
-              src={activePreviewUrl}
-              alt={`Page ${currentPage} Preview`}
-              className="w-full h-full object-contain pointer-events-none"
-            />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-slate-300 text-xs">
-              <FileText className="w-16 h-16 stroke-1" />
-              <span>Page {currentPage}</span>
-            </div>
-          )}
-
-          {/* Draggable/Positioned Signature Stamp Badge */}
-          {signatureData && (
-            <div
-              style={{
-                left: `${stampPos.x}%`,
-                top: `${stampPos.y}%`,
-                width: `${stampSize.width}px`,
-                height: `${stampSize.height}px`,
-                transform: 'translate(-50%, -50%)',
-              }}
-              className="absolute border-2 border-dashed border-teal-500 bg-white/90 rounded-lg p-1.5 shadow-lg flex items-center justify-center cursor-move"
-            >
+        {/* Document Page Canvas: hugs image exactly so percentage clicks match PDF exactly */}
+        <div className="flex-1 w-full flex items-center justify-center p-1 min-h-0">
+          <div
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const clickX = ((e.clientX - rect.left) / rect.width) * 100;
+              const clickY = ((e.clientY - rect.top) / rect.height) * 100;
+              setStampPos({
+                x: Math.max(2, Math.min(98, clickX)),
+                y: Math.max(2, Math.min(98, clickY)),
+              });
+            }}
+            className="relative inline-block max-w-2xl max-h-[75vh] bg-white rounded-xl shadow-2xl border border-slate-300 cursor-crosshair overflow-hidden select-none"
+          >
+            {loadingPages && !activePreviewUrl ? (
+              <div className="w-80 sm:w-96 aspect-[1/1.35] flex flex-col items-center justify-center text-slate-400 gap-2 p-8">
+                <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
+                <span className="text-xs font-semibold">Rendering page {currentPage}...</span>
+              </div>
+            ) : activePreviewUrl ? (
               <img
-                src={signatureData}
-                alt="Signature Stamp"
-                className="max-w-full max-h-full object-contain"
+                src={activePreviewUrl}
+                alt={`Page ${currentPage} Preview`}
+                className="max-w-full max-h-[75vh] w-auto h-auto block object-contain pointer-events-none"
               />
-            </div>
-          )}
+            ) : (
+              <div className="w-80 sm:w-96 aspect-[1/1.35] flex flex-col items-center justify-center text-slate-300 text-xs">
+                <FileText className="w-16 h-16 stroke-1" />
+                <span>Page {currentPage}</span>
+              </div>
+            )}
+
+            {/* Draggable/Positioned Signature Stamp Badge */}
+            {signatureData && (
+              <div
+                style={{
+                  left: `${stampPos.x}%`,
+                  top: `${stampPos.y}%`,
+                  width: `${stampSize.width}px`,
+                  height: `${stampSize.height}px`,
+                  transform: 'translate(-50%, -50%)',
+                }}
+                className="absolute border-2 border-dashed border-teal-500 bg-white/95 rounded-lg p-1.5 shadow-xl flex items-center justify-center cursor-move"
+              >
+                <img
+                  src={signatureData}
+                  alt="Signature Stamp"
+                  className="max-w-full max-h-full object-contain pointer-events-none"
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Bottom Horizontal Thumbnails Strip for Multi-Page Docs */}

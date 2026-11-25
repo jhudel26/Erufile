@@ -52,7 +52,8 @@ export async function generatePdfPreview(
 }
 
 export async function generateAllPagePreviews(
-  file: File
+  file: File,
+  scale = 1.3
 ): Promise<{ pageNumber: number; previewUrl: string }[]> {
   try {
     const arrayBuffer = await file.arrayBuffer();
@@ -63,7 +64,7 @@ export async function generateAllPagePreviews(
 
     for (let i = 1; i <= pageCount; i++) {
       const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 0.4 });
+      const viewport = page.getViewport({ scale });
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d');
 
@@ -79,7 +80,7 @@ export async function generateAllPagePreviews(
 
         results.push({
           pageNumber: i,
-          previewUrl: canvas.toDataURL('image/jpeg', 0.8),
+          previewUrl: canvas.toDataURL('image/jpeg', 0.88),
         });
       }
     }
