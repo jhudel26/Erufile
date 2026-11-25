@@ -11,6 +11,8 @@ import {
   ChevronRight,
   Loader2,
   FileText,
+  Trash2,
+  CheckCheck,
 } from 'lucide-react';
 
 interface SignPdfViewProps {
@@ -22,6 +24,11 @@ interface SignPdfViewProps {
 interface PagePreview {
   pageNumber: number;
   previewUrl: string;
+}
+
+interface StampPlacement {
+  x: number; // percentage (0 - 100)
+  y: number; // percentage (0 - 100)
 }
 
 export const SignPdfView: React.FC<SignPdfViewProps> = ({
@@ -36,18 +43,23 @@ export const SignPdfView: React.FC<SignPdfViewProps> = ({
   const [activeTab, setActiveTab] = useState<'draw' | 'type' | 'upload'>('draw');
   const [typedName, setTypedName] = useState('Jane Doe');
   const [signatureData, setSignatureData] = useState<string | null>(null);
-  const [stampPos, setStampPos] = useState({ x: 50, y: 70 }); // in percentages
+
+  // Multi-page signature placements: map of pageNumber -> {x, y}
+  const [pagePlacements, setPagePlacements] = useState<Record<number, StampPlacement>>({
+    1: { x: 50, y: 70 },
+  });
+
   const [stampSize, setStampSize] = useState({ width: 140, height: 60 });
   const [isDrawing, setIsDrawing] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Load all pages
+  // Load all pages with crisp resolution
   useEffect(() => {
     let isMounted = true;
     async function loadPages() {
       setLoadingPages(true);
-      const list = await generateAllPagePreviews(fileItem.file);
+      const list = await generateAllPagePreviews(fileItem.file, 1.3);
       if (isMounted) {
         setPages(list);
         setLoadingPages(false);
@@ -148,42 +160,121 @@ export const SignPdfView: React.FC<SignPdfViewProps> = ({
     }
   };
 
+  const totalPages = Math.max(pages.length, fileItem.pageCount || 1);
+  const currentStamp = pagePlacements[currentPage];
+
+  // Apply signature to all pages
+  const handleApplyToAllPages = () => {
+    const basePos = currentStamp || { x: 50, y: 70 };
+    const newMap: Record<number, StampPlacement> = {};
+    for (let i = 1; i <= totalPages; i++) {
+      newMap[i] = { ...basePos };
+    }
+    setPagePlacements(newMap);
+  };
+
+  // Remove signature from current page
+  const handleRemoveCurrentPage = () => {
+    setPagePlacements((prev) => {
+      const next = { ...prev };
+      delete next[currentPage];
+      return next;
+    });
+  };
+
+  // Remove signature from specific page
+  const handleRemoveSpecificPage = (pNum: number) => {
+    setPagePlacements((prev) => {
+      const next = { ...prev };
+      delete next[pNum];
+      return next;
+    });
+  };
+
+  const signedPageNumbers = Object.keys(pagePlacements)
+    .map(Number)
+    .sort((a, b) => a - b);
+  const signedCount = signedPageNumbers.length;
+
   const handleApply = () => {
     if (!signatureData) {
       alert('Please create or upload a signature first.');
       return;
     }
 
-    onExecute({
-      signatureData,
-      posX: stampPos.x,
-      posY: stampPos.y,
+    if (signedCount === 0) {
+      alert('Please click on at least one page to place your signature.');
+      return;
+    }
+
+    const placements = Object.entries(pagePlacements).map(([pNum, pos]) => ({
+      pageNumber: Number(pNum),
+      posX: pos.x,
+      posY: pos.y,
       width: stampSize.width,
       height: stampSize.height,
+    }));
+
+    onExecute({
+      signatureData,
+      placements,
+      // Backwards-compatible single-page properties:
       pageNumber: currentPage,
+      posX: currentStamp?.x ?? 50,
+      posY: currentStamp?.y ?? 70,
+      width: stampSize.width,
+      height: stampSize.height,
     });
   };
 
   const activePageObj = pages.find((p) => p.pageNumber === currentPage);
   const activePreviewUrl = activePageObj?.previewUrl || fileItem.previewUrl;
-  const totalPages = Math.max(pages.length, fileItem.pageCount || 1);
 
   return (
     <div className="flex flex-col lg:flex-row min-h-[calc(100vh-64px)]">
       {/* Visual Document Canvas with Drag-Positioned Stamp */}
       <div className="flex-1 p-4 lg:p-6 bg-slate-100 flex flex-col items-center justify-between overflow-auto relative">
-        {/* Top Control Bar with Page Navigation */}
-        <div className="flex items-center justify-between w-full max-w-3xl mb-3 bg-white p-3 px-5 rounded-2xl border border-slate-200 shadow-xs gap-3">
+        {/* Top Control Bar with Page Navigation and Multi-Page Actions */}
+        <div className="flex flex-wrap items-center justify-between w-full max-w-3xl mb-3 bg-white p-3 px-5 rounded-2xl border border-slate-200 shadow-xs gap-3">
           <div className="min-w-0 flex-1">
             <h3 className="text-sm font-bold text-slate-800 truncate" title={fileItem.name}>
               {fileItem.name}
             </h3>
             <p className="text-[11px] text-slate-500 truncate">
-              Click on the page below to place your signature stamp.
+              {currentStamp
+                ? `Signature placed on Page ${currentPage}. Click to reposition.`
+                : `Click anywhere on Page ${currentPage} to place your signature.`}
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Quick multi-page buttons */}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1.5 mr-1">
+                <button
+                  type="button"
+                  onClick={handleApplyToAllPages}
+                  className="text-xs font-bold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-2.5 py-1.5 rounded-lg border border-teal-200 flex items-center gap-1 cursor-pointer transition-colors"
+                  title="Sign all pages in document"
+                >
+                  <CheckCheck className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Sign All</span>
+                </button>
+
+                {currentStamp && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveCurrentPage}
+                    className="text-xs font-bold text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg border border-red-200 flex items-center gap-1 cursor-pointer transition-colors"
+                    title="Remove signature from this page"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Clear Page</span>
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Page navigation */}
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
               <button
@@ -225,10 +316,13 @@ export const SignPdfView: React.FC<SignPdfViewProps> = ({
               const rect = e.currentTarget.getBoundingClientRect();
               const clickX = ((e.clientX - rect.left) / rect.width) * 100;
               const clickY = ((e.clientY - rect.top) / rect.height) * 100;
-              setStampPos({
-                x: Math.max(2, Math.min(98, clickX)),
-                y: Math.max(2, Math.min(98, clickY)),
-              });
+              setPagePlacements((prev) => ({
+                ...prev,
+                [currentPage]: {
+                  x: Math.max(2, Math.min(98, clickX)),
+                  y: Math.max(2, Math.min(98, clickY)),
+                },
+              }));
             }}
             className="relative inline-block max-w-2xl max-h-[75vh] bg-white rounded-xl shadow-2xl border border-slate-300 cursor-crosshair overflow-hidden select-none"
           >
@@ -250,12 +344,12 @@ export const SignPdfView: React.FC<SignPdfViewProps> = ({
               </div>
             )}
 
-            {/* Draggable/Positioned Signature Stamp Badge */}
-            {signatureData && (
+            {/* Draggable/Positioned Signature Stamp Badge on Current Page */}
+            {signatureData && currentStamp && (
               <div
                 style={{
-                  left: `${stampPos.x}%`,
-                  top: `${stampPos.y}%`,
+                  left: `${currentStamp.x}%`,
+                  top: `${currentStamp.y}%`,
                   width: `${stampSize.width}px`,
                   height: `${stampSize.height}px`,
                   transform: 'translate(-50%, -50%)',
@@ -275,45 +369,109 @@ export const SignPdfView: React.FC<SignPdfViewProps> = ({
         {/* Bottom Horizontal Thumbnails Strip for Multi-Page Docs */}
         {pages.length > 1 && (
           <div className="w-full max-w-2xl mt-4 bg-white p-2.5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-2 overflow-x-auto">
-            {pages.map((p) => (
-              <button
-                key={p.pageNumber}
-                type="button"
-                onClick={() => setCurrentPage(p.pageNumber)}
-                className={`flex-shrink-0 w-14 aspect-[3/4] rounded-lg border-2 overflow-hidden relative cursor-pointer transition-all ${
-                  currentPage === p.pageNumber
-                    ? 'border-teal-600 ring-2 ring-teal-600/30 shadow-sm'
-                    : 'border-slate-200 hover:border-slate-300 opacity-70 hover:opacity-100'
-                }`}
-              >
-                {p.previewUrl ? (
-                  <img
-                    src={p.previewUrl}
-                    alt={`Page ${p.pageNumber}`}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-slate-100 flex items-center justify-center text-[10px] text-slate-400">
+            {pages.map((p) => {
+              const isSigned = Boolean(pagePlacements[p.pageNumber]);
+              return (
+                <button
+                  key={p.pageNumber}
+                  type="button"
+                  onClick={() => setCurrentPage(p.pageNumber)}
+                  className={`flex-shrink-0 w-16 aspect-[3/4] rounded-lg border-2 overflow-hidden relative cursor-pointer transition-all ${
+                    currentPage === p.pageNumber
+                      ? 'border-teal-600 ring-2 ring-teal-600/30 shadow-sm'
+                      : isSigned
+                      ? 'border-teal-400 bg-teal-50/30'
+                      : 'border-slate-200 hover:border-slate-300 opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  {p.previewUrl ? (
+                    <img
+                      src={p.previewUrl}
+                      alt={`Page ${p.pageNumber}`}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-slate-100 flex items-center justify-center text-[10px] text-slate-400">
+                      {p.pageNumber}
+                    </div>
+                  )}
+
+                  {/* Signed status indicator badge */}
+                  {isSigned && (
+                    <span className="absolute top-1 right-1 bg-teal-600 text-white rounded-full p-0.5 shadow-xs" title="Signed page">
+                      <Check className="w-2.5 h-2.5" />
+                    </span>
+                  )}
+
+                  <span className="absolute bottom-0.5 right-0.5 px-1 rounded bg-black/70 text-[9px] font-bold text-white">
                     {p.pageNumber}
-                  </div>
-                )}
-                <span className="absolute bottom-0.5 right-0.5 px-1 rounded bg-black/70 text-[9px] font-bold text-white">
-                  {p.pageNumber}
-                </span>
-              </button>
-            ))}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Right Sidebar: Signature Creator */}
+      {/* Right Sidebar: Signature Creator & Multi-Page Manager */}
       <div className="w-full lg:w-96 bg-white border-t lg:border-t-0 lg:border-l border-slate-200 p-6 flex flex-col justify-between shadow-xs">
-        <div className="space-y-6">
+        <div className="space-y-5">
           <div>
             <h3 className="text-xl font-black text-slate-900">Sign Document</h3>
-            <p className="text-xs text-slate-600 mt-1">
-              Signing on <strong>Page {currentPage}</strong> of {totalPages}.
+            <p className="text-xs text-slate-600 mt-0.5">
+              Current view: <strong>Page {currentPage}</strong> of {totalPages}.
             </p>
+          </div>
+
+          {/* Signed Pages Summary & Quick Selection */}
+          <div className="bg-teal-50/70 border border-teal-200/80 rounded-xl p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-teal-950 flex items-center gap-1">
+                <span>Signed Pages ({signedCount} of {totalPages})</span>
+              </span>
+              {totalPages > 1 && (
+                <button
+                  type="button"
+                  onClick={handleApplyToAllPages}
+                  className="text-[11px] font-bold text-teal-700 hover:text-teal-900 underline cursor-pointer"
+                >
+                  Sign All
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+              {signedPageNumbers.length === 0 ? (
+                <span className="text-[11px] text-slate-500 italic">
+                  No pages signed yet. Click on any page to place signature.
+                </span>
+              ) : (
+                signedPageNumbers.map((pNum) => (
+                  <span
+                    key={pNum}
+                    onClick={() => setCurrentPage(pNum)}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold cursor-pointer transition-colors ${
+                      currentPage === pNum
+                        ? 'bg-teal-600 text-white shadow-xs'
+                        : 'bg-white border border-teal-300 text-teal-800 hover:bg-teal-100'
+                    }`}
+                  >
+                    Page {pNum}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveSpecificPage(pNum);
+                      }}
+                      className="hover:text-red-500 ml-0.5 text-xs font-extrabold cursor-pointer"
+                      title={`Remove signature from page ${pNum}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))
+              )}
+            </div>
           </div>
 
           {/* Creation Tabs */}
@@ -444,11 +602,17 @@ export const SignPdfView: React.FC<SignPdfViewProps> = ({
         <div className="pt-6 border-t border-slate-100 mt-6">
           <button
             onClick={handleApply}
-            disabled={!signatureData}
+            disabled={!signatureData || signedCount === 0}
             className="w-full h-14 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-98 text-white font-bold text-base shadow-lg shadow-teal-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Check className="w-5 h-5" />
-            <span>Apply Signature (Page {currentPage})</span>
+            <span>
+              {signedCount === 0
+                ? 'Place Signature on Page'
+                : signedCount === 1
+                ? `Apply Signature (1 Page)`
+                : `Apply Signature (${signedCount} Pages)`}
+            </span>
           </button>
         </div>
       </div>
