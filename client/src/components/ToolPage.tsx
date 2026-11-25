@@ -21,7 +21,7 @@ import { RemovePagesView } from './views/RemovePagesView';
 import { OrganizePagesView } from './views/OrganizePagesView';
 import { SignPdfView } from './views/SignPdfView';
 import { RotatePagesView } from './views/RotatePagesView';
-import { apiUrl } from '../config/api';
+import { executeTool } from '../services/toolRunner';
 
 interface ToolPageProps {
   tool: ToolDefinition;
@@ -55,69 +55,32 @@ export const ToolPage: React.FC<ToolPageProps> = ({
 
     setStage('processing');
     setProgress(15);
-    setStatusText('Uploading files to secure workspace...');
+    setStatusText('Processing document in browser...');
 
     try {
-      // Step 1: Upload files to backend
-      const formData = new FormData();
-      files.forEach((item) => {
-        formData.append('files', item.file);
-      });
-      formData.append('tool', tool.id);
-      formData.append('options', JSON.stringify(options));
+      const output = await executeTool(
+        tool.id,
+        files.map((f) => ({ file: f.file, rotation: f.rotation })),
+        options,
+        (progress, status) => {
+          setProgress(progress);
+          setStatusText(status);
+        }
+      );
 
-      const uploadRes = await fetch(apiUrl('/api/upload'), {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!uploadRes.ok) {
-        throw new Error('Upload failed');
-      }
-
-      const uploadData = await uploadRes.json();
-      setProgress(50);
-      setStatusText(`Executing ${tool.name}...`);
-
-      // Prepare files with rotations
-      const filesWithRotations = uploadData.files.map((backendFile: any, index: number) => ({
-        ...backendFile,
-        rotation: files[index]?.rotation || 0,
-      }));
-
-      // Step 2: Trigger tool processor endpoint
-      const processRes = await fetch(apiUrl(`/api/tools/${tool.id}`), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          taskId: uploadData.taskId,
-          files: filesWithRotations,
-          options,
-        }),
-      });
-
-      setProgress(85);
-      setStatusText('Finalizing document...');
-
-      if (!processRes.ok) {
-        const errorData = await processRes.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to process ${tool.name}`);
-      }
-
-      const processData = await processRes.json();
       setProgress(100);
+      setStatusText('Complete!');
 
-      // Transition to download stage
       setTimeout(() => {
         setResult({
-          downloadUrl: apiUrl(`/api/download/${uploadData.taskId}/${processData.outputFilename}`),
-          filename: processData.outputFilename,
+          downloadUrl: output.downloadUrl,
+          filename: output.filename,
           originalSize: files.reduce((acc, f) => acc + f.size, 0),
-          newSize: processData.outputSize,
-          taskId: uploadData.taskId,
+          newSize: output.outputSize,
+          taskId: 'browser-task',
         });
         setStage('download');
-      }, 500);
+      }, 400);
     } catch (err: any) {
       console.error('Execution error:', err);
       alert(`Error processing files: ${err.message}`);

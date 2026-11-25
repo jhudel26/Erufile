@@ -10,7 +10,6 @@ import {
   Lock,
   RotateCw,
 } from 'lucide-react';
-import { apiUrl } from '../config/api';
 
 interface DownloadAreaProps {
   tool: ToolDefinition;
@@ -35,10 +34,13 @@ export const DownloadArea: React.FC<DownloadAreaProps> = ({
 
   const handleDeleteNow = async () => {
     try {
-      await fetch(apiUrl(`/api/cleanup/${result.taskId}`), { method: 'DELETE' });
+      if (result.downloadUrl && result.downloadUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(result.downloadUrl);
+      }
       setDeleted(true);
     } catch (err) {
       console.error('Error deleting task files:', err);
+      setDeleted(true);
     }
   };
 

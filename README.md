@@ -1,6 +1,7 @@
 # EruFile (DOCSUITE) 📄✨
 
 > Free, powerful, and elegant online PDF & document productivity platform with 27 professional tools.
+> Built to run **100% in the browser** with zero backend server dependencies and complete client-side data privacy.
 > Developed by **[Jhudel](https://jhudel.vercel.app/)**.
 
 ---
@@ -9,10 +10,11 @@
 
 **EruFile** is an all-in-one PDF and document manipulation suite built with modern web standards, high performance, and an intuitive Teal-themed UI.
 
+- **100% In-Browser Execution**: Files never leave your device. All PDF merges, rotations, splits, watermarks, signs, and conversions happen directly in browser memory.
 - **27 Tools in 1**: Merge, Split, Compress, Rotate, Sign, Organize, Convert (Word, Excel, JPG, Markdown, PDF/A), Protect, Unlock, OCR, and more.
 - **Client-Side Previews**: High-speed multi-page PDF rendering via local PDF.js.
-- **Fast Backend Engine**: Powered by Node.js, `pdf-lib`, `sharp`, and `tesseract.js`.
-- **Privacy-First**: Automated temporary task cleanup after processing.
+- **Instant Processing**: Zero upload or download wait times.
+- **Zero Server Costs**: Fully deployable on Vercel as a static web application.
 
 ---
 
@@ -20,13 +22,16 @@
 
 ```
 DOCSUITE / EruFile
-├── client/              # React 19 + TypeScript + Vite + Tailwind CSS v4
-│   ├── vercel.json      # Single Page App rewrite configuration
-│   └── src/
-└── server/              # Express.js + TypeScript
+└── client/                  # React 19 + TypeScript + Vite + Tailwind CSS v4
+    ├── vercel.json          # Single Page App routing configuration
     └── src/
-        ├── routes/      # 27 processing tool endpoints
-        └── utils/       # Ephemeral session file storage and cleanup
+        ├── services/
+        │   ├── pdfEngine.ts    # pdf-lib: merge, split, rotate, watermark, sign, crop, protect, unlock
+        │   ├── imageEngine.ts  # canvas + pdfjs-dist: PDF to JPG, JPG to PDF, Compress PDF
+        │   ├── officeEngine.ts # xlsx, docx, mammoth: Word, Excel, Markdown conversions
+        │   ├── zipEngine.ts    # jszip: multi-page file zipping & direct download trigger
+        │   └── toolRunner.ts   # Unified in-browser tool dispatcher
+        └── components/         # DropArea, WorkArea, ToolPage, DownloadArea, options & views
 ```
 
 ---
@@ -41,25 +46,13 @@ DOCSUITE / EruFile
 
 1. **Install dependencies:**
    ```bash
-   cd client && npm install
-   cd ../server && npm install
+   cd client
+   npm install
    ```
 
 2. **Run in development:**
-   Open two terminals:
-
-   **Terminal 1 (Backend):**
    ```bash
-   cd server
    npm run dev
-   # Runs on http://localhost:5000
-   ```
-
-   **Terminal 2 (Frontend):**
-   ```bash
-   cd client
-   npm run dev
-   # Runs on http://localhost:3000 (proxies /api to :5000)
    ```
 
 3. **Open browser:**
@@ -67,26 +60,18 @@ DOCSUITE / EruFile
 
 ---
 
-## 🌐 Deployment Guide
+## 🌐 1-Click Deployment to Vercel
 
-### 1. Frontend on Vercel
-1. Import your GitHub repository (`jhudel26/Erufile`) in [Vercel](https://vercel.com).
-2. Set **Root Directory** to `client`.
-3. Framework Preset: **Vite**.
-4. Build Command: `npm run build`
-5. Output Directory: `dist`
-6. Under **Environment Variables**, add:
-   - `VITE_API_URL`: Your deployed backend URL (e.g. `https://erufile-backend.onrender.com`)
+Because all 27 tools run directly in the browser, **you do not need a backend server**:
 
-### 2. Backend on Render or Railway
-*Note: Because the backend utilizes heavy libraries (`sharp`, `tesseract.js`), it is best deployed on a containerized service like [Render](https://render.com) or [Railway](https://railway.app).*
-
-#### On Render:
-1. Create a new **Web Service** pointing to your repository.
-2. Set **Root Directory** to `server`.
-3. Build Command: `npm install && npm run build`
-4. Start Command: `npm start`
-5. Copy your Render URL (e.g. `https://erufile-backend.onrender.com`) and paste it into Vercel's `VITE_API_URL` environment variable.
+1. Go to **[vercel.com](https://vercel.com)** and click **"Add New" ➔ "Project"**.
+2. Select your repository: **`jhudel26/Erufile`**.
+3. In the project setup:
+   - **Root Directory**: Click *Edit* and select **`client`**.
+   - **Framework Preset**: **Vite** (auto-detected).
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+4. Click **Deploy**! Your site is live and fully functional immediately.
 
 ---
 
