@@ -460,16 +460,21 @@ export async function processSignPdf(
   const pngImage = await pdfDoc.embedPng(bytes);
   const targetPageIdx = Math.max(0, Math.min(Number(options?.pageNumber || 1) - 1, pdfDoc.getPageCount() - 1));
   const page = pdfDoc.getPage(targetPageIdx);
-  const { width } = page.getSize();
+  const { width: pageWidth, height: pageHeight } = page.getSize();
 
+  // Scale percentage coordinates from visual interactive canvas
+  const posXPercent = Number(options?.posX ?? options?.x ?? 50);
+  const posYPercent = Number(options?.posY ?? options?.y ?? 70);
   const sigWidth = Number(options?.width) || 160;
   const sigHeight = (pngImage.height / pngImage.width) * sigWidth;
-  const sigX = typeof options?.x === 'number' ? options.x : width - sigWidth - 60;
-  const sigY = typeof options?.y === 'number' ? options.y : 60;
+
+  // Convert from browser top-left origin to PDF bottom-left origin
+  const drawX = (posXPercent / 100) * pageWidth - sigWidth / 2;
+  const drawY = pageHeight - (posYPercent / 100) * pageHeight - sigHeight / 2;
 
   page.drawImage(pngImage, {
-    x: sigX,
-    y: sigY,
+    x: Math.max(0, Math.min(pageWidth - sigWidth, drawX)),
+    y: Math.max(0, Math.min(pageHeight - sigHeight, drawY)),
     width: sigWidth,
     height: sigHeight,
   });
