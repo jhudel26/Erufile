@@ -37,9 +37,11 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
     range_from: 1,
     range_to: 1,
     password: '',
-    watermark_text: 'CONFIDENTIAL',
-    watermark_position: 'center',
-    page_number_position: 'bottom-right',
+    text: 'CONFIDENTIAL',
+    position: 'bottom-right',
+    opacity: 0.35,
+    rotation: 45,
+    format: 'page_n_of_p',
   });
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -264,12 +266,84 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                 title={item.pageCount && item.pageCount > 1 ? `Click to inspect all ${item.pageCount} pages` : ''}
               >
                 {item.previewUrl ? (
-                  <img
-                    src={item.previewUrl}
-                    alt={item.name}
-                    style={{ transform: `rotate(${item.rotation || 0}deg)` }}
-                    className="max-h-full max-w-full object-contain rounded-sm shadow-xs transition-transform duration-200"
-                  />
+                  <div className="relative w-full h-full flex items-center justify-center">
+                    <img
+                      src={item.previewUrl}
+                      alt={item.name}
+                      style={{ transform: `rotate(${item.rotation || 0}deg)` }}
+                      className="max-h-full max-w-full object-contain rounded-sm shadow-xs transition-transform duration-200"
+                    />
+
+                    {/* Live Watermark Overlay Preview */}
+                    {tool.id === 'add-watermark' && (
+                      <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden">
+                        <div
+                          style={{
+                            transform: `rotate(${options.rotation !== undefined ? options.rotation : 45}deg)`,
+                            opacity: options.opacity !== undefined ? options.opacity : 0.35,
+                            fontSize: '13px',
+                            color: '#b91c1c',
+                            fontWeight: 'bold',
+                            letterSpacing: '0.05em',
+                          }}
+                          className="border border-red-500/40 bg-red-50/20 px-2.5 py-0.5 rounded-sm select-none text-center shadow-xs"
+                        >
+                          {options.text || 'CONFIDENTIAL'}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Live Page Number Overlay Preview */}
+                    {tool.id === 'add-page-numbers' && (
+                      <div className="absolute inset-0 pointer-events-none p-2 flex flex-col justify-between">
+                        <div
+                          className={`flex ${(options.position || 'bottom-right').includes('center') ? 'justify-center' : (options.position || 'bottom-right').includes('right') ? 'justify-end' : 'justify-start'}`}
+                        >
+                          {(options.position || 'bottom-right').includes('top') && (
+                            <span className="bg-slate-900/85 text-white text-[9px] font-mono px-1.5 py-0.5 rounded-xs shadow-xs font-bold">
+                              {options.format === 'page_n'
+                                ? 'Page 1'
+                                : options.format === 'n_of_p'
+                                ? `1/${item.pageCount || 1}`
+                                : options.format === 'page_n_of_p'
+                                ? `Page 1 of ${item.pageCount || 1}`
+                                : '1'}
+                            </span>
+                          )}
+                        </div>
+                        <div
+                          className={`flex ${(options.position || 'bottom-right').includes('center') ? 'justify-center' : (options.position || 'bottom-right').includes('right') ? 'justify-end' : 'justify-start'}`}
+                        >
+                          {(options.position || 'bottom-right').includes('bottom') && (
+                            <span className="bg-slate-900/85 text-white text-[9px] font-mono px-1.5 py-0.5 rounded-xs shadow-xs font-bold">
+                              {options.format === 'page_n'
+                                ? 'Page 1'
+                                : options.format === 'n_of_p'
+                                ? `1/${item.pageCount || 1}`
+                                : options.format === 'page_n_of_p'
+                                ? `Page 1 of ${item.pageCount || 1}`
+                                : '1'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Live Crop Bounding Box Preview */}
+                    {tool.id === 'crop-pdf' && (
+                      <div
+                        style={{
+                          top: `${Math.min(30, (options.top || 0) / 3)}%`,
+                          bottom: `${Math.min(30, (options.bottom || 0) / 3)}%`,
+                          left: `${Math.min(30, (options.left || 0) / 3)}%`,
+                          right: `${Math.min(30, (options.right || 0) / 3)}%`,
+                        }}
+                        className="absolute border-2 border-dashed border-teal-500 bg-teal-500/10 pointer-events-none rounded-xs flex items-center justify-center text-[10px] text-teal-800 font-bold"
+                      >
+                        Crop Area
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center text-slate-400">
                     <FileText className="w-12 h-12 stroke-[1.5]" />

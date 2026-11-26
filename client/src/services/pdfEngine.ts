@@ -521,15 +521,18 @@ export async function processCropPdf(
   const fileBytes = await fileToUint8Array(file);
   const pdfDoc = await PDFDocument.load(fileBytes, { ignoreEncryption: true });
 
-  const cropMargin = Number(options?.margin || options?.crop_margin || 20);
+  const top = Number(options?.top || options?.margin || 0);
+  const bottom = Number(options?.bottom || options?.margin || 0);
+  const left = Number(options?.left || options?.margin || 0);
+  const right = Number(options?.right || options?.margin || 0);
   const pages = pdfDoc.getPages();
 
   for (const page of pages) {
     const { width, height } = page.getSize();
-    const newX = Math.min(cropMargin, width / 4);
-    const newY = Math.min(cropMargin, height / 4);
-    const newWidth = Math.max(100, width - newX * 2);
-    const newHeight = Math.max(100, height - newY * 2);
+    const newX = Math.max(0, Math.min(left, width / 3));
+    const newY = Math.max(0, Math.min(bottom, height / 3));
+    const newWidth = Math.max(50, width - newX - Math.min(right, width / 3));
+    const newHeight = Math.max(50, height - newY - Math.min(top, height / 3));
 
     page.setCropBox(newX, newY, newWidth, newHeight);
   }

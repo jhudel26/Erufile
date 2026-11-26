@@ -4,7 +4,6 @@ import { DropArea } from './DropArea';
 import { WorkArea } from './WorkArea';
 import { ProgressModal } from './ProgressModal';
 import { DownloadArea } from './DownloadArea';
-import { SplitOptions } from './options/SplitOptions';
 import { CompressOptions } from './options/CompressOptions';
 import { RepairOptions } from './options/RepairOptions';
 import { OcrOptions } from './options/OcrOptions';
@@ -21,6 +20,7 @@ import { RemovePagesView } from './views/RemovePagesView';
 import { OrganizePagesView } from './views/OrganizePagesView';
 import { SignPdfView } from './views/SignPdfView';
 import { RotatePagesView } from './views/RotatePagesView';
+import { SplitPagesView } from './views/SplitPagesView';
 import { executeTool } from '../services/toolRunner';
 
 interface ToolPageProps {
@@ -120,6 +120,12 @@ export const ToolPage: React.FC<ToolPageProps> = ({
               onExecute={executeToolProcess}
               onCancel={handleRestart}
             />
+          ) : tool.id === 'split-pdf' && files[0] ? (
+            <SplitPagesView
+              fileItem={files[0]}
+              onExecute={executeToolProcess}
+              onCancel={handleRestart}
+            />
           ) : (
             <WorkArea
               tool={tool}
@@ -127,15 +133,7 @@ export const ToolPage: React.FC<ToolPageProps> = ({
               onFilesChange={setFiles}
               onExecute={executeToolProcess}
               renderSidebarOptions={
-                tool.id === 'split-pdf'
-                  ? (opts, setOpts) => (
-                      <SplitOptions
-                        totalPages={files[0]?.pageCount || 1}
-                        options={opts}
-                        setOptions={setOpts}
-                      />
-                    )
-                  : tool.id === 'compress-pdf'
+                tool.id === 'compress-pdf'
                   ? (opts, setOpts) => (
                       <CompressOptions options={opts} setOptions={setOpts} />
                     )
